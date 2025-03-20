@@ -124,6 +124,4 @@ The server handles all the complexity of interacting with the Vidu API, includin
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
 
-[MIT](LICENSE)

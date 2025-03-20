@@ -11,13 +11,14 @@ A Model Context Protocol (MCP) server for interacting with the Vidu video genera
 ## Prerequisites
 
 - Node.js (v14 or higher)
-- A Vidu API key
+- A Vidu API key (available from [Vidu website](https://vidu.com))
+- TypeScript (for development)
 
 ## Installation
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/your-username/vidu-mcp-server.git
+git clone https://github.com/el-el-san/vidu-mcp-server.git
 cd vidu-mcp-server
 ```
 
@@ -60,12 +61,32 @@ Parameters:
 - `movement_amplitude` (optional): Movement amplitude of objects in the frame ("auto", "small", "medium", "large", default "auto")
 - `seed` (optional): Random seed for reproducibility
 
+Example request:
+```json
+{
+  "image_url": "https://example.com/image.jpg",
+  "prompt": "A serene lake with mountains in the background",
+  "duration": 8,
+  "model": "vidu2.0",
+  "resolution": "720p",
+  "movement_amplitude": "medium",
+  "seed": 12345
+}
+```
+
 ### 2. Check Generation Status
 
 Checks the status of a running video generation task.
 
 Parameters:
 - `task_id` (required): Task ID returned by the image-to-video tool
+
+Example request:
+```json
+{
+  "task_id": "12345abcde"
+}
+```
 
 ### 3. Upload Image
 
@@ -74,6 +95,34 @@ Uploads an image to use with the Vidu API.
 Parameters:
 - `image_path` (required): Local path to the image file
 - `image_type` (required): Image file type ("png", "webp", "jpeg", "jpg")
+
+Example request:
+```json
+{
+  "image_path": "/path/to/your/image.jpg",
+  "image_type": "jpg"
+}
+```
+
+## How It Works
+
+The server uses the Model Context Protocol (MCP) to provide a standardized interface for AI tools. When you start the server, it listens for commands through standard input/output channels and responds with results in a structured format.
+
+The server handles all the complexity of interacting with the Vidu API, including:
+- Authentication with API keys
+- File uploads and format validation
+- Asynchronous task management and polling
+- Error handling and reporting
+
+## Troubleshooting
+
+- **API Key Issues**: Make sure your Vidu API key is correctly set in the `.env` file
+- **File Upload Errors**: Check that your image files are valid and under 10MB in size
+- **Connection Problems**: Ensure you have internet access and can reach the Vidu API servers
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 

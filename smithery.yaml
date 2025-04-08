@@ -1,0 +1,23 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required:
+      - viduApiKey
+    properties:
+      viduApiKey:
+        type: string
+        description: Vidu API Key for authenticating with the Vidu API
+  commandFunction:
+    # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
+    |-
+    (config) => ({
+      command: 'node',
+      args: ['build/index.js'],
+      env: { VIDU_API_KEY: config.viduApiKey }
+    })
+  exampleConfig:
+    viduApiKey: your_example_vidu_api_key

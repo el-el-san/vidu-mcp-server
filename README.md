@@ -1,4 +1,5 @@
 # Vidu MCP Server
+[![smithery badge](https://smithery.ai/badge/@el-el-san/vidu-mcp-server)](https://smithery.ai/server/@el-el-san/vidu-mcp-server)
 
 A Model Context Protocol (MCP) server for interacting with the Vidu video generation API. This server provides tools for generating videos from images using Vidu's powerful AI models.
 
@@ -16,6 +17,15 @@ A Model Context Protocol (MCP) server for interacting with the Vidu video genera
 
 ## Installation
 
+### Installing via Smithery
+
+To install Vidu Video Generation Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@el-el-san/vidu-mcp-server):
+
+```bash
+npx -y @smithery/cli install @el-el-san/vidu-mcp-server --client claude
+```
+
+### Manual Installation
 1. Clone this repository:
 ```bash
 git clone https://github.com/el-el-san/vidu-mcp-server.git

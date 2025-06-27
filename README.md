@@ -1,112 +1,145 @@
 # Vidu MCP Server
 [![smithery badge](https://smithery.ai/badge/@el-el-san/vidu-mcp-server)](https://smithery.ai/server/@el-el-san/vidu-mcp-server)
 
-A Model Context Protocol (MCP) server for interacting with the Vidu video generation API. This server provides tools for generating videos from images using Vidu's powerful AI models.
+Vidu動画生成APIと連携するためのModel Context Protocol (MCP) サーバーです。Viduの強力なAIモデルを使用して、画像から動画を生成するツールを提供します。
 
-## Features
+## 機能
 
-- **Image to Video Conversion**: Generate videos from static images with customizable settings
-- **Check Generation Status**: Monitor the progress of video generation tasks
-- **Image Upload**: Easily upload images to be used with the Vidu API
+- **画像から動画への変換**: カスタマイズ可能な設定で静止画から動画を生成
+  - 複数モデル対応: viduq1、vidu1.5、vidu2.0
+  - モデル固有の時間・解像度制約
+  - 4秒動画向けのBGM対応
+  - 非同期通知用のコールバックURL対応
+- **生成状況の確認**: クレジット使用量情報付きで動画生成タスクの進捗を監視
+- **画像アップロード**: Vidu APIで使用する画像を簡単にアップロード（最大10MB）
 
-## Prerequisites
+## 前提条件
 
-- Node.js (v14 or higher)
-- A Vidu API key (available from [Vidu website](https://vidu.com))
-- TypeScript (for development)
+- Node.js (v14以上)
+- Vidu APIキー（[Viduウェブサイト](https://vidu.com)から取得可能）
+- TypeScript（開発用）
 
-## Installation
+## インストール
 
-### Installing via Smithery
+### Smithery経由でのインストール
 
-To install Vidu Video Generation Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@el-el-san/vidu-mcp-server):
+[Smithery](https://smithery.ai/server/@el-el-san/vidu-mcp-server)を使用してClaude Desktop用のVidu Video Generation Serverを自動インストール:
 
 ```bash
 npx -y @smithery/cli install @el-el-san/vidu-mcp-server --client claude
 ```
 
-### Manual Installation
-1. Clone this repository:
+### Gemini CLI設定
+
+Gemini CLIで使用するには、`~/.gemini/settings.json`にサーバー設定を追加してください:
+
+```json
+{
+  "mcpServers": {
+    "vidu": {
+      "command": "node",
+      "args": [
+        "your_path/vidu-mcp-server/build/index.js"
+      ],
+      "env": {
+        "VIDU_API_KEY": "your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+**注意**: `your_path`を実際のインストールディレクトリのパスに、`your_api_key_here`をあなたのVidu APIキーに置き換えてください。
+
+### 手動インストール
+1. このリポジトリをクローン:
 ```bash
 git clone https://github.com/el-el-san/vidu-mcp-server.git
 cd vidu-mcp-server
 ```
 
-2. Install dependencies:
+2. 依存関係をインストール:
 ```bash
 npm install
 ```
 
-3. Create a `.env` file based on the `.env.template` and add your Vidu API key:
+3. `.env.template`を基に`.env`ファイルを作成し、Vidu APIキーを追加:
 ```
 VIDU_API_KEY=your_api_key_here
 ```
 
-## Usage
+## 使用方法
 
-1. Build the TypeScript code:
+### Gemini CLI用
+
+1. TypeScriptコードをビルド:
 ```bash
 npm run build
 ```
 
-2. Start the server:
-```bash
-npm start
-```
+2. Gemini CLI設定で設定（上記のGemini CLI設定セクションを参照）
 
-The MCP server will start and be ready to accept connections from MCP clients.
+3. Gemini CLIを再起動してMCPを読み込み
 
-## Tools
+## ツール
 
-### 1. Image to Video
+### 1. 画像から動画への変換
 
-Converts a static image to a video with customizable parameters.
+カスタマイズ可能なパラメータで静止画を動画に変換します。
 
-Parameters:
-- `image_url` (required): URL of the image to convert to video
-- `prompt` (optional): Text prompt for video generation (max 1500 chars)
-- `duration` (optional): Duration of the output video in seconds (4 or 8, default 4)
-- `model` (optional): Model name for generation ("vidu1.0", "vidu1.5", "vidu2.0", default "vidu2.0")
-- `resolution` (optional): Resolution of the output video ("360p", "720p", "1080p", default "720p")
-- `movement_amplitude` (optional): Movement amplitude of objects in the frame ("auto", "small", "medium", "large", default "auto")
-- `seed` (optional): Random seed for reproducibility
+パラメータ:
+- `image_url` (必須): 動画に変換する画像のURL
+- `prompt` (オプション): 動画生成用のテキストプロンプト（最大1500文字）
+- `duration` (オプション): 出力動画の時間（秒）（モデル固有）
+  - **viduq1**: 5秒のみ
+  - **vidu1.5/vidu2.0**: 4秒または8秒（デフォルト4秒）
+- `model` (オプション): 生成用モデル名（"viduq1", "vidu1.5", "vidu2.0", デフォルト "vidu2.0"）
+- `resolution` (オプション): 出力動画の解像度（モデル/時間固有）
+  - **viduq1 (5s)**: 1080pのみ
+  - **vidu1.5/vidu2.0 (4s)**: "360p", "720p", "1080p"（デフォルト "360p"）
+  - **vidu1.5/vidu2.0 (8s)**: "720p"のみ
+- `movement_amplitude` (オプション): フレーム内オブジェクトの動きの振幅（"auto", "small", "medium", "large", デフォルト "auto"）
+- `seed` (オプション): 再現性のためのランダムシード
+- `bgm` (オプション): 動画にBGMを追加（boolean, デフォルト false, 4秒動画のみ）
+- `callback_url` (オプション): 生成状況変更時の非同期通知用URL
 
-Example request:
+リクエスト例:
 ```json
 {
   "image_url": "https://example.com/image.jpg",
-  "prompt": "A serene lake with mountains in the background",
+  "prompt": "山を背景にした静かな湖",
   "duration": 8,
   "model": "vidu2.0",
   "resolution": "720p",
   "movement_amplitude": "medium",
-  "seed": 12345
+  "seed": 12345,
+  "bgm": false
 }
 ```
 
-### 2. Check Generation Status
+### 2. 生成状況の確認
 
-Checks the status of a running video generation task.
+実行中の動画生成タスクの状況を確認します。
 
-Parameters:
-- `task_id` (required): Task ID returned by the image-to-video tool
+パラメータ:
+- `task_id` (必須): 画像から動画への変換ツールで返されたタスクID
 
-Example request:
+リクエスト例:
 ```json
 {
   "task_id": "12345abcde"
 }
 ```
 
-### 3. Upload Image
+### 3. 画像アップロード
 
-Uploads an image to use with the Vidu API.
+Vidu APIで使用する画像をアップロードします。
 
-Parameters:
-- `image_path` (required): Local path to the image file
-- `image_type` (required): Image file type ("png", "webp", "jpeg", "jpg")
+パラメータ:
+- `image_path` (必須): 画像ファイルのローカルパス
+- `image_type` (必須): 画像ファイルタイプ（"png", "webp", "jpeg", "jpg"）
 
-Example request:
+リクエスト例:
 ```json
 {
   "image_path": "/path/to/your/image.jpg",
@@ -114,24 +147,16 @@ Example request:
 }
 ```
 
-## How It Works
+## トラブルシューティング
 
-The server uses the Model Context Protocol (MCP) to provide a standardized interface for AI tools. When you start the server, it listens for commands through standard input/output channels and responds with results in a structured format.
+- **APIキーの問題**: Vidu APIキーが`.env`ファイル（手動設定の場合）またはGemini CLI設定（Gemini CLI設定の場合）で正しく設定されていることを確認してください
+- **ファイルアップロードエラー**: 画像ファイルが有効で、サイズ制限内（upload-imageツールは10MB、直接URL画像は最大50MB）であることを確認してください
+- **接続問題**: インターネットアクセスがあり、Vidu APIサーバーに到達できることを確認してください
+- **Gemini CLIの問題**: 
+  - Gemini CLIで設定する前にサーバーがビルドされている（`npm run build`）ことを確認してください
+  - settings.jsonのパスが正しい`build/index.js`ファイルを指していることを確認してください
+  - 設定変更後にGemini CLIを再起動してください
+  - サーバー設定で`"disabled": false`に設定してください
 
-The server handles all the complexity of interacting with the Vidu API, including:
-- Authentication with API keys
-- File uploads and format validation
-- Asynchronous task management and polling
-- Error handling and reporting
-
-## Troubleshooting
-
-- **API Key Issues**: Make sure your Vidu API key is correctly set in the `.env` file
-- **File Upload Errors**: Check that your image files are valid and under 10MB in size
-- **Connection Problems**: Ensure you have internet access and can reach the Vidu API servers
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 

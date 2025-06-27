@@ -10,6 +10,15 @@ import * as dotenv from "dotenv";
 interface StartResponse {
   task_id: string;
   state: string;
+  model: string;
+  images: string[];
+  prompt: string;
+  duration: number;
+  seed: number;
+  resolution: string;
+  bgm: boolean;
+  movement_amplitude: string;
+  created_at: string;
 }
 
 interface CreationItem {
@@ -21,12 +30,14 @@ interface CreationItem {
 interface StatusResponse {
   state: string;
   err_code?: string;
+  credits?: number;
   creations?: CreationItem[];
 }
 
 interface UploadResponse {
   id: string;
   put_url: string;
+  expires_at: string;
 }
 
 interface FinishResponse {
@@ -59,14 +70,59 @@ server.tool(
   {
     image_url: z.string().url().describe("URL of the image to convert to video"),
     prompt: z.string().max(1500).optional().describe("Text prompt for video generation (max 1500 chars)"),
-    duration: z.number().int().min(4).max(8).default(4).describe("Duration of the output video in seconds (4 or 8)"),
-    model: z.enum(["vidu1.0", "vidu1.5", "vidu2.0"]).default("vidu2.0").describe("Model name for generation"),
-    resolution: z.enum(["360p", "720p", "1080p"]).default("720p").describe("Resolution of the output video"),
+    duration: z.number().int().optional().describe("Duration of the output video in seconds (model-specific)"),
+    model: z.enum(["viduq1", "vidu1.5", "vidu2.0"]).default("vidu2.0").describe("Model name for generation"),
+    resolution: z.enum(["360p", "720p", "1080p"]).optional().describe("Resolution of the output video (model/duration-specific)"),
     movement_amplitude: z.enum(["auto", "small", "medium", "large"]).default("auto").describe("Movement amplitude of objects in the frame"),
-    seed: z.number().int().optional().describe("Random seed for reproducibility")
+    seed: z.number().int().optional().describe("Random seed for reproducibility"),
+    bgm: z.boolean().optional().describe("Add background music (4s videos only)"),
+    callback_url: z.string().url().optional().describe("Callback URL for async notifications")
   },
-  async ({ image_url, prompt, duration, model, resolution, movement_amplitude, seed }) => {
+  async ({ image_url, prompt, duration, model, resolution, movement_amplitude, seed, bgm, callback_url }) => {
     try {
+      // Validate model-specific constraints
+      let finalDuration = duration;
+      let finalResolution = resolution;
+      
+      if (model === "viduq1") {
+        // viduq1 only supports 5s duration and 1080p resolution
+        finalDuration = 5;
+        finalResolution = "1080p";
+        if (duration && duration !== 5) {
+          console.warn(`Model viduq1 only supports 5s duration. Using 5s instead of ${duration}s.`);
+        }
+        if (resolution && resolution !== "1080p") {
+          console.warn(`Model viduq1 only supports 1080p resolution. Using 1080p instead of ${resolution}.`);
+        }
+      } else {
+        // vidu1.5 and vidu2.0
+        if (!duration || ![4, 8].includes(duration)) {
+          finalDuration = 4; // Default to 4s
+        } else {
+          finalDuration = duration;
+        }
+        
+        // Resolution constraints based on duration
+        if (finalDuration === 4) {
+          if (!resolution || !["360p", "720p", "1080p"].includes(resolution)) {
+            finalResolution = "360p"; // Default for 4s
+          } else {
+            finalResolution = resolution;
+          }
+        } else if (finalDuration === 8) {
+          finalResolution = "720p"; // Only option for 8s
+          if (resolution && resolution !== "720p") {
+            console.warn(`8s videos only support 720p resolution. Using 720p instead of ${resolution}.`);
+          }
+        }
+      }
+      
+      // BGM validation
+      const finalBgm = bgm === true && finalDuration === 4;
+      if (bgm === true && finalDuration !== 4) {
+        console.warn(`BGM is only supported for 4s videos. BGM will not be added for ${finalDuration}s video.`);
+      }
+      
       // Step 1: Start the generation task
       const startResponse = await fetch(`${VIDU_API_BASE_URL}/ent/v2/img2video`, {
         method: "POST",
@@ -78,10 +134,12 @@ server.tool(
           model,
           images: [image_url],
           prompt: prompt || "",
-          duration,
+          duration: finalDuration,
           seed: seed !== undefined ? seed : Math.floor(Math.random() * 1000000),
-          resolution,
-          movement_amplitude
+          resolution: finalResolution,
+          movement_amplitude,
+          bgm: finalBgm,
+          ...(callback_url && { callback_url })
         })
       });
 
@@ -176,6 +234,7 @@ server.tool(
       if (result && result.creations && result.creations.length > 0) {
         const videoUrl = result.creations[0].url;
         const coverUrl = result.creations[0].cover_url;
+        const credits = result.credits;
         
         return {
           content: [
@@ -186,6 +245,7 @@ Video generation complete!
 
 Task ID: ${taskId}
 Status: ${state}
+Credits used: ${credits || 'N/A'}
 Video URL: ${videoUrl}
 Cover Image URL: ${coverUrl}
 
@@ -260,6 +320,7 @@ server.tool(
         if (statusData.creations && statusData.creations.length > 0) {
           const videoUrl = statusData.creations[0].url;
           const coverUrl = statusData.creations[0].cover_url;
+          const credits = statusData.credits;
           
           return {
             content: [
@@ -270,6 +331,7 @@ Generation task complete!
 
 Task ID: ${task_id}
 Status: ${statusData.state}
+Credits used: ${credits || 'N/A'}
 Video URL: ${videoUrl}
 Cover Image URL: ${coverUrl}
 
@@ -358,7 +420,7 @@ server.tool(
         };
       }
       
-      // Validate file size (must be less than 10MB)
+      // Validate file size (must be less than 10MB for upload)
       const stats = fs.statSync(image_path);
       const fileSizeInBytes = stats.size;
       const fileSizeInMB = fileSizeInBytes / (1024 * 1024);
@@ -369,7 +431,7 @@ server.tool(
           content: [
             {
               type: "text",
-              text: `File size exceeds the 10MB limit. Current size: ${fileSizeInMB.toFixed(2)}MB`
+              text: `File size exceeds the 10MB limit for image upload. Current size: ${fileSizeInMB.toFixed(2)}MB`
             }
           ]
         };

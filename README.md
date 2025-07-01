@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/el-el-san-vidu-mcp-server-badge.png)](https://mseep.ai/app/el-el-san-vidu-mcp-server)
+
 # Vidu MCP Server
 [![smithery badge](https://smithery.ai/badge/@el-el-san/vidu-mcp-server)](https://smithery.ai/server/@el-el-san/vidu-mcp-server)
 
